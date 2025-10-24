@@ -8,7 +8,6 @@ import qualified Data.IntSet as IS
 import           Data.Vector.Unboxed (Vector, (!))
 import qualified Data.Vector.Unboxed as V
 import           Data.Maybe
-import           Data.Bifunctor (first)
 
 newtype Letter = Letter { intLetter :: Int } deriving newtype (Show, Eq, Ord, Enum, Num)
 newtype Pos    = Pos    { intPos    :: Int } deriving newtype (Show, Eq, Ord, Enum, Num)
@@ -214,7 +213,9 @@ runEnigma cfg = go
   where
     go st []     = (st, [])
     go st (x:xs) =
-      let (st' , my) = first incCount $ enigmaStep cfg st x
+      let (st' , my) = case enigmaStep cfg st x of
+             (st_, Nothing) -> (st_, Nothing)
+             (st_, Just y ) -> (incCount st_, Just y)
           (st'', ys) = go st' xs
       in (st'', spacedAppend st'.count my ys)
     spacedAppend cnt my ys = case (my, spacedOutput cfg) of

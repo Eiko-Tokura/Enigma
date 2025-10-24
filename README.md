@@ -25,6 +25,14 @@ cat input.txt | enigma --pos VER | enigma --pos YLO | enigma --pos NGK | enigma 
 # Note that in this case decoding must be done in reverse order
 ```
 
+Example Input and output:
+
+```plaintext
+enigma --pos AAA
+hello world
+ILBDA AMTAZ
+```
+
 Optional configuration flags:
 
 ```plaintext

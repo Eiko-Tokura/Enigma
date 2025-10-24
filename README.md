@@ -54,3 +54,7 @@ git clone https://github.com/Eiko-Tokura/Enigma.git
 cd Enigma
 cabal install
 ```
+
+## Performance
+
+I tested it on 10000000 random letters input (9.5MB file), it runs in `2.1s` on my lunar lake laptop, with constant memory usage around `12MB`. The performance seems very decent (though not meaningful XD).

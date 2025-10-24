@@ -19,6 +19,10 @@ echo "hello world" | enigma --pos AAA
 cat input.txt | enigma --pos XYZ > output.txt
 
 cat input.txt | enigma --pos EFG --removeNonLetters --spaced 5
+
+cat input.txt | enigma --pos VER | enigma --pos YLO | enigma --pos NGK | enigma --pos EYS
+# chaining multiple enigma commands to increase security (and use a longer key)
+# Note that in this case decoding must be done in reverse order
 ```
 
 Optional configuration flags:

@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Enigma where
@@ -7,6 +8,7 @@ import qualified Data.IntSet as IS
 import           Data.Vector.Unboxed (Vector, (!))
 import qualified Data.Vector.Unboxed as V
 import           Data.Maybe
+import           Data.Bifunctor (first)
 
 newtype Letter = Letter { intLetter :: Int } deriving newtype (Show, Eq, Ord, Enum, Num)
 newtype Pos    = Pos    { intPos    :: Int } deriving newtype (Show, Eq, Ord, Enum, Num)
@@ -58,6 +60,8 @@ data EnigmaConfig = EnigmaConfig
   , rightRotor :: RotorConfig
   , reflector  :: Reflector
   , plugboard  :: Plugboard
+  , removeNonLetters :: Bool
+  , spacedOutput     :: Maybe Int
   } deriving (Eq, Show)
 
 defaultEnigmaConfig :: EnigmaConfig
@@ -67,6 +71,8 @@ defaultEnigmaConfig = EnigmaConfig
   , rightRotor = rotorIII
   , reflector  = reflB
   , plugboard  = mkPlugboard []
+  , removeNonLetters = False
+  , spacedOutput     = Nothing
   }
 
 -- Smart constructor from a 26-letter wiring and notch letters.
@@ -117,13 +123,14 @@ data EnigmaState = EnigmaState
   { leftS  :: !RotorState
   , midS   :: !RotorState
   , rightS :: !RotorState
+  , count  :: !Int
   } deriving (Eq, Show)
 
 defaultRotorState :: RotorState
 defaultRotorState = RotorState (Pos 0) (Ring 0)
 
 defaultEnigmaState :: EnigmaState
-defaultEnigmaState = EnigmaState defaultRotorState defaultRotorState defaultRotorState
+defaultEnigmaState = EnigmaState defaultRotorState defaultRotorState defaultRotorState 0
 
 setPositions :: (Char, Char, Char) -> EnigmaState -> EnigmaState
 setPositions (l, m, r) st@EnigmaState{..} =
@@ -181,13 +188,15 @@ advance EnigmaConfig{..} st@EnigmaState{..} =
       r'    = stepRotor rightS
   in  st { leftS = l', midS = m', rightS = r' }
 
-enigmaStep :: EnigmaConfig -> EnigmaState -> Char -> (EnigmaState, Char)
-enigmaStep cfg st c =
+incCount :: EnigmaState -> EnigmaState
+incCount st = st { count = count st + 1 }
+
+enigmaStep :: EnigmaConfig -> EnigmaState -> Char -> (EnigmaState, Maybe Char)
+enigmaStep cfg@EnigmaConfig{..} st c =
   case toLetter c of
-    Nothing -> (st, c) -- pass through non-letters without advancing
+    Nothing -> if removeNonLetters then (st, Nothing) else (st, Just c) -- pass through non-letters without advancing
     Just x0 ->
       let st1 = advance cfg st
-          EnigmaConfig{..} = cfg
           EnigmaState{..} = st1
           x1 = throughPlugboard plugboard           x0
           x2 = throughFow       rightRotor  rightS  x1
@@ -198,15 +207,23 @@ enigmaStep cfg st c =
           x7 = throughRev       midRotor    midS    x6
           x8 = throughRev       rightRotor  rightS  x7
           x9 = throughPlugboard plugboard           x8
-      in (st1, letterToChar x9)
+      in (st1, Just $ letterToChar x9)
 
 runEnigma :: EnigmaConfig -> EnigmaState -> String -> (EnigmaState, String)
 runEnigma cfg = go
   where
     go st []     = (st, [])
-    go st (x:xs) = let (st', y)   = enigmaStep cfg st x
-                       (st'', ys) = go st' xs
-                   in  (st'', y:ys)
+    go st (x:xs) =
+      let (st' , my) = first incCount $ enigmaStep cfg st x
+          (st'', ys) = go st' xs
+      in (st'', spacedAppend st'.count my ys)
+    spacedAppend cnt my ys = case (my, spacedOutput cfg) of
+      (Nothing, _       ) -> ys
+      (Just y, Nothing)   -> y : ys
+      (Just y, Just n )   -> y :
+        if cnt `mod` n == 0
+        then ' ' : ys
+        else       ys
 
 simpleRunEnigma :: EnigmaConfig -> (Char, Char, Char) -> String -> String
 simpleRunEnigma cfg (p0, p1, p2) input =

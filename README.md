@@ -14,9 +14,11 @@ enigma --pos FGB
 ```
 
 ```bash
-echo "HELLO WORLD" | enigma --pos AAA
+echo "hello world" | enigma --pos AAA
 
 cat input.txt | enigma --pos XYZ > output.txt
+
+cat input.txt | enigma --pos EFG --removeNonLetters --spaced 5
 ```
 
 Optional configuration flags:
@@ -32,6 +34,11 @@ Optional configuration flags:
 
 --plugboard <connections>
   where <connections> is a 2 character string representing a pair of letters to be swapped, multiple connections can be provided by multiple --plugboard flags, e.g. --plugboard AB --plugboard CD
+
+--removeNonLetters
+  removes non-letter characters from input
+--spaced Int
+  outputs a space every Int characters, useful in conjunction with --removeNonLetters
 ```
 
 ## Build From Source

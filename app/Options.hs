@@ -14,6 +14,8 @@ data EnigmaOptions = EnigmaOptions
   , midRotor    :: Maybe EnigmaRotor     <?> "Set the middle rotor"
   , rightRotor  :: Maybe EnigmaRotor     <?> "Set the right rotor"
   , reflector   :: Maybe EnigmaReflector <?> "Set the reflector"
+  , removeNonLetters :: Bool             <?> "Remove non-letter characters from input"
+  , spaced      :: Maybe Int             <?> "Output with spaces every N characters"
   } deriving (Generic, Show)
 
 instance ParseField (Char, Char, Char) where
@@ -75,6 +77,8 @@ enigmaOptionsToConfig opts =
       , rightRotor = maybe rotorIII toRotor  opts.rightRotor.unHelpful
       , reflector  = maybe reflB toReflector opts.reflector.unHelpful
       , plugboard  = mkPlugboard opts.plugboard.unHelpful
+      , removeNonLetters = opts.removeNonLetters.unHelpful
+      , spacedOutput     = opts.spaced.unHelpful
       }
   , opts.pos.unHelpful
   )

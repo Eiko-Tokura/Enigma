@@ -37,9 +37,12 @@ Optional configuration flags:
 ## Build From Source
 
 Install haskell tools from ghcup (recommended) or just install GHC and Cabal.
-[GHCup installation](https://www.haskell.org/ghcup/)
+
+See link [GHCup installation](https://www.haskell.org/ghcup/)
 
 ```bash
+https://github.com/Eiko-Tokura/Enigma.git
+cd Enigma
 cabal build
 # the build file lives in ./dist-newstyle
 ```
@@ -47,5 +50,7 @@ cabal build
 Or use `cabal install` to install the executable to your local path:
 
 ```bash
+https://github.com/Eiko-Tokura/Enigma.git
+cd Enigma
 cabal install
 ```

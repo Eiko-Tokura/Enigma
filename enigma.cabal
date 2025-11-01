@@ -43,7 +43,7 @@ executable enigma
     -- Import common warning flags.
     import:           warnings
 
-    ghc-options: -O2
+    ghc-options: -O2 -fplugin=Fusion.Plugin
 
     -- .hs or .lhs file containing the Main module.
     main-is:          Main.hs
@@ -61,6 +61,10 @@ executable enigma
                  , optparse-applicative >= 0.19.0 && < 0.20
                  , optparse-generic >= 1.5.2 && < 1.6
                  , vector >= 0.13.2 && < 0.14
+                 , streamly
+                 , streamly-core
+                 , mtl
+                 , fusion-plugin
 
     -- Directories containing source files.
     hs-source-dirs:   app

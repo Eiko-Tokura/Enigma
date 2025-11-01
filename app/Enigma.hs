@@ -1,13 +1,22 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Enigma where
+module Enigma
+  ( module Enigma
+  , readChars, putChars
+  ) where
 import           Data.Char (isAsciiUpper, toUpper, ord, chr)
 import qualified Data.IntSet as IS
 import           Data.Vector.Unboxed (Vector, (!))
 import qualified Data.Vector.Unboxed as V
 import           Data.Maybe
+import Streamly.Internal.Console.Stdio (readChars, putChars)
+import Streamly.Data.Stream (Stream)
+import qualified Streamly.Data.Stream as Stream
+import Control.Monad.State
 
 newtype Letter = Letter { intLetter :: Int } deriving newtype (Show, Eq, Ord, Enum, Num)
 newtype Pos    = Pos    { intPos    :: Int } deriving newtype (Show, Eq, Ord, Enum, Num)
@@ -16,7 +25,8 @@ newtype Reflector = Reflector { vecReflector :: Vector Int } deriving newtype (S
 newtype Plugboard = Plugboard { vecPlugboard :: Vector Int } deriving newtype (Show, Eq)
 
 mod26 :: Int -> Int
-mod26 x = let r = x `mod` 26 in if r < 0 then r + 26 else r
+mod26 x | x > 25 || x < 0 = x `mod` 26
+        | otherwise       = x
 
 (+.) :: Int -> Int -> Int
 (+.) a b = mod26 (a + b)
@@ -189,6 +199,7 @@ advance EnigmaConfig{..} st@EnigmaState{..} =
 
 incCount :: EnigmaState -> EnigmaState
 incCount st = st { count = count st + 1 }
+{-# INLINE incCount #-}
 
 enigmaStep :: EnigmaConfig -> EnigmaState -> Char -> (EnigmaState, Maybe Char)
 enigmaStep cfg@EnigmaConfig{..} st c =
@@ -208,6 +219,23 @@ enigmaStep cfg@EnigmaConfig{..} st c =
           x9 = throughPlugboard plugboard           x8
       in (st1, Just $ letterToChar x9)
 
+enigmaStepS :: Monad m => EnigmaConfig -> Char -> StateT EnigmaState m (Maybe Char, Maybe Char)
+enigmaStepS cfg c = do
+  st <- get
+  let (!st', my) = case enigmaStep cfg st c of
+          (st_, Nothing) -> (st_, Nothing)
+          (st_, Just y ) -> (incCount st_, Just y)
+      mSpace  = case (my, spacedOutput cfg) of
+        (Nothing, _     ) -> Nothing
+        (Just _, Nothing) -> Nothing
+        (Just _, Just n ) -> if st'.count `mod` n == 0
+                              then Just ' '
+                              else Nothing
+      outChar = my
+  put st'
+  return (outChar, mSpace)
+{-# INLINABLE enigmaStepS #-}
+
 runEnigma :: EnigmaConfig -> EnigmaState -> String -> (EnigmaState, String)
 runEnigma cfg = go
   where
@@ -219,16 +247,36 @@ runEnigma cfg = go
           (st'', ys) = go st' xs
       in (st'', spacedAppend st'.count my ys)
     spacedAppend cnt my ys = case (my, spacedOutput cfg) of
-      (Nothing, _       ) -> ys
-      (Just y, Nothing)   -> y : ys
-      (Just y, Just n )   -> y :
+      (Nothing, _     ) -> ys
+      (Just y, Nothing) -> y : ys
+      (Just y, Just n ) -> y :
         if cnt `mod` n == 0
         then ' ' : ys
         else       ys
 
-simpleRunEnigma :: EnigmaConfig -> (Char, Char, Char) -> String -> String
-simpleRunEnigma cfg (p0, p1, p2) input =
-  let state0 = setRings     ('A','A','A')
+runEnigmaStream :: Monad m => EnigmaConfig -> EnigmaState -> Stream m Char -> Stream m Char
+runEnigmaStream cfg st0
+  = Stream.morphInner (`evalStateT` st0)
+  . Stream.concatMapM (fmap (\case
+      (Just c, Nothing)  -> Stream.fromPure c
+      (Just c, Just s )  -> Stream.fromList [c, s]
+      (Nothing, Nothing) -> Stream.nil
+      (Nothing, Just s ) -> Stream.fromPure s
+      ) . enigmaStepS cfg)
+  . Stream.morphInner lift
+{-# INLINABLE runEnigmaStream #-}
+
+simpleRunEnigmaStream :: Monad m => EnigmaConfig -> (Char, Char, Char) -> (Char, Char, Char) -> Stream m Char -> Stream m Char
+simpleRunEnigmaStream cfg (r0, r1, r2) (p0, p1, p2) input =
+  let state0 = setRings     (r0, r1, r2)
+             . setPositions (p0, p1, p2)
+             $ defaultEnigmaState
+  in runEnigmaStream cfg state0 input
+{-# INLINABLE simpleRunEnigmaStream #-}
+
+simpleRunEnigma :: EnigmaConfig -> (Char, Char, Char) -> (Char, Char, Char) -> String -> String
+simpleRunEnigma cfg (r0, r1, r2) (p0, p1, p2) input =
+  let state0 = setRings     (r0, r1, r2)
              . setPositions (p0, p1, p2)
              $ defaultEnigmaState
       (_, out) = runEnigma cfg state0 input

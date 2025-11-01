@@ -6,16 +6,19 @@ import Enigma
 import Options.Generic
 import qualified Options.Applicative          as Options
 import qualified Options.Applicative.Types    as Options
+import Data.Maybe (fromMaybe)
 
 data EnigmaOptions = EnigmaOptions
-  { pos         :: (Char, Char, Char)    <?> "Starting positions for the rotors (e.g. AAA)"
-  , plugboard   :: [(Char, Char)]        <?> "Plugboard settings as pairs of characters (e.g. A-B C-D)"
-  , leftRotor   :: Maybe EnigmaRotor     <?> "Set the left rotor"
-  , midRotor    :: Maybe EnigmaRotor     <?> "Set the middle rotor"
-  , rightRotor  :: Maybe EnigmaRotor     <?> "Set the right rotor"
-  , reflector   :: Maybe EnigmaReflector <?> "Set the reflector"
-  , removeNonLetters :: Bool             <?> "Remove non-letter characters from input"
-  , spaced      :: Maybe Int             <?> "Output with spaces every N characters"
+  { pos         :: (Char, Char, Char)       <?> "Starting positions for the rotors (e.g. AAA)"
+  , ring        :: Maybe (Char, Char, Char) <?> "Ring settings for the rotors (e.g. BBB)"
+  , plugboard   :: [(Char, Char)]           <?> "Plugboard settings as pairs of characters (e.g. A-B C-D)"
+  , leftRotor   :: Maybe EnigmaRotor        <?> "Set the left rotor"
+  , midRotor    :: Maybe EnigmaRotor        <?> "Set the middle rotor"
+  , rightRotor  :: Maybe EnigmaRotor        <?> "Set the right rotor"
+  , reflector   :: Maybe EnigmaReflector    <?> "Set the reflector"
+  , removeNonLetters :: Bool                <?> "Remove non-letter characters from input"
+  , spaced      :: Maybe Int                <?> "Output with spaces every N characters"
+  , streamly    :: Bool                     <?> "Use streamly implementation instead of standard one"
   } deriving (Generic, Show)
 
 instance ParseField (Char, Char, Char) where
@@ -69,7 +72,7 @@ toReflector ReflectorBThin = reflBThin
 toReflector ReflectorCThin = reflCThin
 toReflector (CustomReflector wiring) = reflectorFromString wiring
 
-enigmaOptionsToConfig :: EnigmaOptions -> (EnigmaConfig, (Char, Char, Char))
+enigmaOptionsToConfig :: EnigmaOptions -> (EnigmaConfig, (Char, Char, Char), (Char, Char, Char))
 enigmaOptionsToConfig opts =
   ( EnigmaConfig
       { leftRotor  = maybe rotorI   toRotor  opts.leftRotor.unHelpful
@@ -81,4 +84,5 @@ enigmaOptionsToConfig opts =
       , spacedOutput     = opts.spaced.unHelpful
       }
   , opts.pos.unHelpful
+  , fromMaybe ('A', 'A', 'A') opts.ring.unHelpful
   )
